@@ -84,4 +84,4 @@ class FlowerModel:
     def get_random_samples(self, flower_class, n_samples):
         n_images = len(self.class_to_image_paths[flower_class])
         rand_idx = np.random.choice(n_images-1, n_samples)
-        return np.array([mpimg.imread(fname) for fname in self.class_to_image_paths[flower_class][rand_idx]])
+        return [mpimg.imread(fname) for fname in self.class_to_image_paths[flower_class][rand_idx]]
