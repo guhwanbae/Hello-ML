@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.image as mpimg
 from pathlib import Path
 from six.moves import urllib
+from sklearn import model_selection
 import cv2
 
 class FlowerModel:
@@ -18,7 +19,6 @@ class FlowerModel:
         self.path = path
         self.labels = None
         self.class_to_image_paths = None
-        self.class_to_images = None
         self.class_and_path_pairs = None
     
     def get_class_labels(self):
@@ -89,14 +89,14 @@ class FlowerModel:
         self.labels = self.get_class_labels()
         self.class_to_image_paths = self.get_class_to_image_paths()
     
-    def load_images(self):
-        if self.class_to_images is not None:
-            return self.class_to_images
-
-        self.class_to_images = {}
-        for flower_class, image_paths in self.class_to_image_paths.items():
-            self.class_to_images[flower_class] = np.array([mpimg.imread(fname) for fname in image_paths])
-        return self.class_to_images  
+    def load_images(self, shape=(299, 299)):
+        X = []
+        y = []
+        flower_class_to_idx = self.class_to_idx()
+        for flower_class, image_path in self.get_class_and_path_pairs():
+            X.append(cv2.resize(mpimg.imread(image_path), shape))
+            y.append(flower_class_to_idx[flower_class])
+        return np.asarray(X, dtype=np.float32), np.asarray(y, dtype=np.int32)
     
     def get_random_samples(self, flower_class, n_samples, resize_shape=None):
         n_images = len(self.class_to_image_paths[flower_class])
@@ -106,19 +106,21 @@ class FlowerModel:
             samples = [cv2.resize(sample, dsize=resize_shape) for sample in samples]
         return samples
     
-    def random_batch(self, batch_size, augmentation_op=None, size=None):
-        class_and_path_pairs = np.asarray(self.get_class_and_path_pairs())
-        class_to_idx = self.class_to_idx()
-        n_samples = len(class_and_path_pairs)
-        n_batches = int(np.ceil(n_samples // batch_size))
-        random_idx = np.random.permutation(n_samples)
+    def train_test_split(self, test_size=0.2, shape=(299,299)):
+        X, y = self.load_images()
+        return model_selection.train_test_split(X, y, test_size=test_size)
+    
+    def random_batch(self, X, y, batch_size,
+                     augmentation_op=None, aug_size=None):
+        n_batches = int(np.ceil(len(X) / batch_size))
+        random_idx = np.random.permutation(len(X))
         for idx in np.array_split(random_idx, n_batches):
-            X_batch = np.array([mpimg.imread(path) for flower_class, path in class_and_path_pairs[idx]])
-            y_batch = np.array([class_to_idx[flower_class] for flower_class, path in class_and_path_pairs[idx]])
+            X_batch = X[idx]
+            y_batch = y[idx]
             if augmentation_op:
-                X_batch = np.repeat(X_batch, size)
-                y_batch = np.repeat(y_batch, size)
+                X_batch = np.repeat(X_batch, aug_size, axis=0)
                 X_batch = np.array([augmentation_op(image) for image in X_batch])
+                y_batch = np.repeat(y_batch, aug_size)
                 shuffle_idx = np.random.permutation(len(X_batch))
                 X_batch = X_batch[shuffle_idx]
                 y_batch = y_batch[shuffle_idx]
