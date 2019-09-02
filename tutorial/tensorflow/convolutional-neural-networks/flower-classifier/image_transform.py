@@ -30,7 +30,7 @@ def random_affine(image, max_zoom, max_angle_rad, max_shear, max_shift):
     return skimage.transform.warp(image, T.inverse, mode='reflect')
 
 def random_transform(image, shape=(299,299),
-                     max_zoom=0.2, max_angle_rad=0.3,
+                     max_zoom=0.2, max_angle_rad=0.6,
                      max_shear=0.2, max_shift=0.1,
                      vertical_flip=0.3, horizontal_flip=0.3,
                      max_margin=0.1):
